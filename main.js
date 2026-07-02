@@ -116,7 +116,7 @@ const initCanvasScroll = () => {
         scrollTrigger: {
             trigger: "#frame-section",
             start: "top top",
-            end: "+=100%", // Pins for exactly 100vh of scroll distance
+            end: "+=500%", // Pins for 500vh of scroll distance to make the animation play slowly
             pin: true,
             scrub: 0.5,
         },
@@ -124,7 +124,135 @@ const initCanvasScroll = () => {
     });
 };
 
+const initGalleryAnimation = () => {
+    const gallerySection = document.getElementById("gallery-section");
+    if (!gallerySection) return;
+
+    let cardsTl; // Define early so the main scrolltrigger can access it
+
+    const tl = gsap.timeline({
+        scrollTrigger: {
+            trigger: "#gallery-section",
+            start: "top top",
+            end: "+=300%",
+            pin: true,
+            scrub: 1,
+            onUpdate: (self) => {
+                if (cardsTl) {
+                    if (self.progress > 0.98) {
+                        cardsTl.play();
+                    } else if (self.progress < 0.9) {
+                        cardsTl.reverse();
+                    }
+                }
+            }
+        }
+    });
+
+    // 1. Marquee movement for the three rows
+    // Row 1 and 3 move left
+    tl.fromTo("#gallery-row-1", { x: "0vw" }, { x: "-20vw", duration: 1, ease: "power1.inOut" }, 0);
+    tl.fromTo("#gallery-row-3", { x: "0vw" }, { x: "-20vw", duration: 1, ease: "power1.inOut" }, 0);
+    
+    // Row 2 moves right to center. It starts off-screen left, and arrives perfectly at x=0.
+    tl.fromTo("#gallery-row-2", { x: "-20vw" }, { x: "0vw", duration: 1, ease: "power1.inOut" }, 0);
+
+    // 2. Fade out all non-target gallery items
+    tl.to(".gallery-item", {
+        opacity: 0,
+        scale: 0.8,
+        duration: 1,
+        ease: "power2.inOut"
+    }, 0.5);
+
+    // 3. Un-tilt the slope without scaling the container
+    tl.to("#gallery-container", {
+        rotation: 0,
+        duration: 1.5,
+        ease: "power2.inOut"
+    }, 0.5);
+
+    // 4. Animate the target card to its original full-screen size (100vw x 100vh)
+    tl.to("#gallery-hero-wrapper", {
+        width: "100vw",
+        height: "100vh",
+        borderRadius: "0px",
+        duration: 1.5,
+        ease: "power2.inOut"
+    }, 0.5);
+    
+    tl.to("#gallery-hero-img", {
+        borderRadius: "0px",
+        duration: 1.5,
+        ease: "power2.inOut"
+    }, 0.5);
+
+    // (The scroll animation now only handles the zoom. The text appearing is moved to the automatic sequence below.)
+
+    // 6. Automatic Time-Based Animation (Triggered at the end of the scroll)
+    cardsTl = gsap.timeline({ paused: true });
+    
+    // First, fade in the clear overlay and animate the text into the center
+    cardsTl.to("#gallery-hero-content", {
+        opacity: 1,
+        duration: 1,
+        ease: "power2.out"
+    })
+    .to([
+        "#gallery-hero-icon", 
+        "#gallery-hero-subtitle", 
+        "#gallery-hero-title", 
+        "#gallery-hero-text"
+    ], {
+        y: 0,
+        opacity: 1,
+        duration: 0.8,
+        stagger: 0.15,
+        ease: "back.out(1.7)"
+    }, "-=0.5")
+    
+    // Pause briefly so the user can read the text in the center
+    .to({}, { duration: 1.0 })
+
+    // Then move the text section towards the top
+    .to("#gallery-hero-text-section", {
+        y: "-28vh",
+        duration: 1.5,
+        ease: "power2.inOut"
+    })
+    // At the same time, elegantly fade out everything EXCEPT the main title
+    .to([
+        "#gallery-hero-icon", 
+        "#gallery-hero-subtitle", 
+        "#gallery-hero-text"
+    ], {
+        opacity: 0,
+        duration: 1.0,
+        ease: "power2.inOut"
+    }, "<")
+    
+    // And finally stagger in the cards
+    .to("#gallery-hero-cards", {
+        opacity: 1,
+        pointerEvents: "auto",
+        duration: 0.1
+    }, "-=1.5")
+    .to(".product-card", {
+        y: 0,
+        opacity: 1,
+        duration: 1,
+        stagger: 0.2,
+        ease: "power3.out"
+    }, "-=1.0");
+};
+
 window.addEventListener("load", () => {
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
     initAnimations();
     initCanvasScroll();
+    initGalleryAnimation();
 });
