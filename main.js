@@ -80,8 +80,8 @@ const initCanvasScroll = () => {
     if (!canvas) return;
 
     const context = canvas.getContext("2d");
-    const frameCount = 192;
-    const currentFrame = (index) => `./assets/Chocolate_1/${String(index + 1).padStart(5, '0')}.webp`;
+    const frameCount = 288; // Swapped to Chocolate_2 sequence
+    const currentFrame = (index) => `./assets/Chocolate_2/${String(index + 1).padStart(5, '0')}.webp`;
 
     const images = [];
     const seq = { frame: 0 };
@@ -102,8 +102,43 @@ const initCanvasScroll = () => {
         
         context.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Stretch the image to fill the entire canvas
-        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Object-cover style: maintain aspect ratio, fill the canvas
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const canvasAspect = canvas.width / canvas.height;
+        
+        let drawWidth, drawHeight, offsetX, offsetY;
+        if (canvasAspect > imgAspect) {
+            // Canvas is wider than image — fit width
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / imgAspect;
+            offsetX = 0;
+            offsetY = (canvas.height - drawHeight) / 2;
+        } else {
+            // Canvas is taller than image — fit height
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * imgAspect;
+            offsetX = (canvas.width - drawWidth) / 2;
+            offsetY = 0;
+        }
+        
+        context.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+    };
+
+    const textOverlay = document.getElementById('frame-text-overlay');
+    const TEXT_START = 266; // frame index (0-based) for frame 00267
+    const TEXT_END   = 287; // frame index (0-based) for frame 00288
+    const TEXT_FADE  = 8;   // frames to fade in/out
+
+    const updateOverlay = () => {
+        if (!textOverlay) return;
+        const f = seq.frame;
+        let opacity = 0;
+        if (f >= TEXT_START && f <= TEXT_END) {
+            const fadeIn  = Math.min((f - TEXT_START) / TEXT_FADE, 1);
+            const fadeOut = Math.min((TEXT_END - f) / TEXT_FADE, 1);
+            opacity = Math.min(fadeIn, fadeOut);
+        }
+        textOverlay.style.opacity = opacity;
     };
 
     images[0].onload = render;
@@ -116,11 +151,11 @@ const initCanvasScroll = () => {
         scrollTrigger: {
             trigger: "#frame-section",
             start: "top top",
-            end: "+=500%", // Pins for 500vh of scroll distance to make the animation play slowly
+            end: "+=500%",
             pin: true,
             scrub: 0.5,
         },
-        onUpdate: render
+        onUpdate: () => { render(); updateOverlay(); }
     });
 };
 
@@ -232,6 +267,93 @@ const initGalleryAnimation = () => {
     }, 4.0);
 };
 
+const initCanvasScroll2 = () => {
+    const canvas = document.getElementById("frameCanvas2");
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d");
+    const frameCount = 176; // Swapped to Chocolate_1 sequence
+    const currentFrame = (index) => `./assets/Chocolate_1/${String(index + 1).padStart(5, '0')}.webp`;
+
+    const images = [];
+    const seq = { frame: 0 };
+
+    for (let i = 0; i < frameCount; i++) {
+        const img = new Image();
+        img.src = currentFrame(i);
+        images.push(img);
+    }
+
+    const render = () => {
+        if (!images[seq.frame] || !images[seq.frame].complete) return;
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Calculate scaling to cover the whole canvas (object-cover equivalent)
+        const scale = Math.max(canvas.width / images[seq.frame].width, canvas.height / images[seq.frame].height);
+        const x = (canvas.width - images[seq.frame].width * scale) / 2;
+        const y = (canvas.height - images[seq.frame].height * scale) / 2;
+
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(images[seq.frame], x, y, images[seq.frame].width * scale, images[seq.frame].height * scale);
+    };
+
+    // Render the first frame once the first image is loaded
+    images[0].onload = render;
+
+    // Redraw on resize
+    window.addEventListener("resize", render);
+
+    gsap.to(seq, {
+        frame: frameCount - 1,
+        snap: "frame",
+        ease: "none",
+        scrollTrigger: {
+            trigger: "#frame-section-2",
+            start: "top top",
+            end: "+=300%", // Provides a good scrolling distance
+            scrub: 1,
+            pin: true
+        },
+        onUpdate: render
+    });
+};
+
+const initMobileMenu = () => {
+    const btn = document.getElementById("mobile-menu-btn");
+    const closeBtn = document.getElementById("mobile-menu-close");
+    const menu = document.getElementById("mobile-menu");
+    const links = document.querySelectorAll(".mobile-link");
+
+    if (!btn || !closeBtn || !menu) return;
+
+    const openMenu = () => {
+        menu.classList.remove("opacity-0", "pointer-events-none", "hidden");
+        menu.classList.add("opacity-100", "pointer-events-auto", "flex");
+    };
+
+    const closeMenu = () => {
+        menu.classList.add("opacity-0", "pointer-events-none");
+        menu.classList.remove("opacity-100", "pointer-events-auto");
+        // We use a timeout to hide it completely after the opacity transition
+        setTimeout(() => {
+            menu.classList.add("hidden");
+            menu.classList.remove("flex");
+        }, 300);
+    };
+
+    // Ensure it's initially hidden
+    menu.classList.add("hidden");
+
+    btn.addEventListener("click", openMenu);
+    closeBtn.addEventListener("click", closeMenu);
+
+    links.forEach(link => {
+        link.addEventListener("click", closeMenu);
+    });
+};
+
 window.addEventListener("load", () => {
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
@@ -241,4 +363,6 @@ window.addEventListener("load", () => {
     initAnimations();
     initCanvasScroll();
     initGalleryAnimation();
+    initCanvasScroll2();
+    initMobileMenu();
 });
