@@ -128,24 +128,13 @@ const initGalleryAnimation = () => {
     const gallerySection = document.getElementById("gallery-section");
     if (!gallerySection) return;
 
-    let cardsTl; // Define early so the main scrolltrigger can access it
-
     const tl = gsap.timeline({
         scrollTrigger: {
             trigger: "#gallery-section",
             start: "top top",
-            end: "+=300%",
+            end: "+=600%", // Extended to give enough scroll distance for the whole sequence
             pin: true,
             scrub: 1,
-            onUpdate: (self) => {
-                if (cardsTl) {
-                    if (self.progress > 0.98) {
-                        cardsTl.play();
-                    } else if (self.progress < 0.9) {
-                        cardsTl.reverse();
-                    }
-                }
-            }
         }
     });
 
@@ -187,18 +176,15 @@ const initGalleryAnimation = () => {
         ease: "power2.inOut"
     }, 0.5);
 
-    // (The scroll animation now only handles the zoom. The text appearing is moved to the automatic sequence below.)
-
-    // 6. Automatic Time-Based Animation (Triggered at the end of the scroll)
-    cardsTl = gsap.timeline({ paused: true });
-    
-    // First, fade in the clear overlay and animate the text into the center
-    cardsTl.to("#gallery-hero-content", {
+    // 5. Fade in the clear overlay
+    tl.to("#gallery-hero-content", {
         opacity: 1,
         duration: 1,
         ease: "power2.out"
-    })
-    .to([
+    }, 2.0); // Starts right when the zoom animation is finishing
+
+    // 6. Animate the text into the center
+    tl.to([
         "#gallery-hero-icon", 
         "#gallery-hero-subtitle", 
         "#gallery-hero-title", 
@@ -206,22 +192,20 @@ const initGalleryAnimation = () => {
     ], {
         y: 0,
         opacity: 1,
-        duration: 0.8,
+        duration: 1,
         stagger: 0.15,
         ease: "back.out(1.7)"
-    }, "-=0.5")
-    
-    // Pause briefly so the user can read the text in the center
-    .to({}, { duration: 1.0 })
+    }, 2.2);
 
-    // Then move the text section towards the top
-    .to("#gallery-hero-text-section", {
+    // 7. Move the text section towards the top
+    tl.to("#gallery-hero-text-section", {
         y: "-28vh",
         duration: 1.5,
         ease: "power2.inOut"
-    })
-    // At the same time, elegantly fade out everything EXCEPT the main title
-    .to([
+    }, 3.5);
+
+    // 8. At the same time, elegantly fade out everything EXCEPT the main title
+    tl.to([
         "#gallery-hero-icon", 
         "#gallery-hero-subtitle", 
         "#gallery-hero-text"
@@ -229,21 +213,23 @@ const initGalleryAnimation = () => {
         opacity: 0,
         duration: 1.0,
         ease: "power2.inOut"
-    }, "<")
+    }, 3.5);
     
-    // And finally stagger in the cards
-    .to("#gallery-hero-cards", {
+    // 9. Enable pointer events on the cards wrapper
+    tl.to("#gallery-hero-cards", {
         opacity: 1,
         pointerEvents: "auto",
         duration: 0.1
-    }, "-=1.5")
-    .to(".product-card", {
+    }, 3.5);
+
+    // 10. Stagger in the product cards
+    tl.to(".product-card", {
         y: 0,
         opacity: 1,
         duration: 1,
         stagger: 0.2,
         ease: "power3.out"
-    }, "-=1.0");
+    }, 4.0);
 };
 
 window.addEventListener("load", () => {
