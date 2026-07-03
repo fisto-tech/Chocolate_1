@@ -7,6 +7,8 @@ const lenis = new Lenis({
     smooth: true,
 })
 
+lenis.stop(); // Stop scrolling during preloader
+
 lenis.on('scroll', ScrollTrigger.update)
 gsap.ticker.add((time) => { lenis.raf(time * 1000) })
 gsap.ticker.lagSmoothing(0)
@@ -474,16 +476,64 @@ const initSectionReveals = () => {
     }
 };
 
-window.addEventListener("load", () => {
+document.addEventListener("DOMContentLoaded", () => {
     // Initialize Lucide icons
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
     
-    initAnimations();
-    initCanvasScroll();
-    initGalleryAnimation();
-    initCanvasScroll2();
-    initMobileMenu();
-    initSectionReveals();
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+        gsap.set("#preloader-logo", { y: 20 });
+        gsap.set("#preloader-text", { y: 20 });
+        
+        const preloaderTl = gsap.timeline();
+        
+        preloaderTl.to("#preloader-logo", { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+                   .to("#preloader-text", { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, "-=0.3")
+                   .to("#preloader-bar", { 
+                       x: "0%", 
+                       duration: 1.5, 
+                       ease: "power2.inOut",
+                       onComplete: () => {
+                           const hidePreloader = () => {
+                               gsap.to("#preloader", {
+                                   opacity: 0,
+                                   duration: 0.8,
+                                   ease: "power2.inOut",
+                                   onComplete: () => {
+                                       preloader.style.display = 'none';
+                                       document.body.classList.remove('overflow-hidden');
+                                       window.scrollTo(0, 0);
+                                       lenis.start();
+                                       
+                                       initAnimations();
+                                       initCanvasScroll();
+                                       initGalleryAnimation();
+                                       initCanvasScroll2();
+                                       initMobileMenu();
+                                       initSectionReveals();
+                                   }
+                               });
+                           };
+                           
+                           if (document.readyState === 'complete') {
+                               hidePreloader();
+                           } else {
+                               window.addEventListener('load', hidePreloader);
+                           }
+                       }
+                   });
+    } else {
+        window.addEventListener("load", () => {
+            document.body.classList.remove('overflow-hidden');
+            lenis.start();
+            initAnimations();
+            initCanvasScroll();
+            initGalleryAnimation();
+            initCanvasScroll2();
+            initMobileMenu();
+            initSectionReveals();
+        });
+    }
 });
