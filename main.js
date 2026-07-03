@@ -18,47 +18,65 @@ const initAnimations = () => {
         { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: "power3.out", delay: 0.2 }
     );
 
-    // 2. Define Hero Text Animation (Left to Right)
-    const playHeroTextAnimation = () => {
-        const tl = gsap.timeline();
+    // 2. Define Hero Text Animation Loop
+    const video = document.getElementById("heroVideo");
+    let heroTl;
+
+    const buildHeroTimeline = () => {
+        heroTl = gsap.timeline({ 
+            paused: true,
+            onComplete: () => {
+                // Wait 1 second after text appears, then hide it
+                gsap.delayedCall(1, () => heroTl.reverse());
+            },
+            onReverseComplete: () => {
+                // Once text is completely hidden, restart the video
+                if (video) {
+                    video.currentTime = 0;
+                    video.play();
+                }
+            }
+        });
         
-        tl.fromTo(".hero-subtitle", 
+        heroTl.fromTo(".hero-subtitle", 
             { opacity: 0, x: -50 },
             { opacity: 1, x: 0, duration: 1, ease: "power3.out" }
         );
 
-        tl.fromTo(".hero-title", 
+        heroTl.fromTo(".hero-title", 
             { opacity: 0, x: -50 },
             { opacity: 1, x: 0, duration: 1.2, ease: "power3.out" },
             "-=0.6"
         );
 
-        tl.fromTo(".hero-desc",
+        heroTl.fromTo(".hero-desc",
             { opacity: 0, x: -50 },
             { opacity: 1, x: 0, duration: 1, ease: "power3.out" },
             "-=0.8"
         );
 
-        tl.fromTo(".hero-btn",
+        heroTl.fromTo(".hero-btn",
             { opacity: 0, x: -50 },
             { opacity: 1, x: 0, duration: 1, ease: "power3.out" },
             "-=0.8"
         );
     };
 
-    // 3. Wait for video to finish before showing text
-    const video = document.getElementById("heroVideo");
+    buildHeroTimeline();
+
+    // 3. Start the loop sequence
     if (video) {
-        // If the video has already ended (unlikely on load, but safe to check)
         if (video.ended) {
-            playHeroTextAnimation();
+            heroTl.play();
         } else {
-            // Listen for the 'ended' event
-            video.addEventListener('ended', playHeroTextAnimation, { once: true });
+            // Listen for the 'ended' event to trigger text animation
+            video.addEventListener('ended', () => {
+                heroTl.play();
+            });
         }
     } else {
         // Fallback if video isn't found
-        playHeroTextAnimation();
+        heroTl.play();
     }
 
     // 4. Scroll parallax setup
@@ -232,24 +250,41 @@ const initGalleryAnimation = () => {
         ease: "back.out(1.7)"
     }, 2.2);
 
-    // 7. Move the text section towards the top
+    // 7. Move the text section towards the top smoothly before cards appear
+    const isLargeScreen = window.innerWidth >= 1024;
+    const textShift = isLargeScreen ? "-24vh" : "-20vh";
+    
     tl.to("#gallery-hero-text-section", {
-        y: "-28vh",
+        y: textShift,
         duration: 1.5,
         ease: "power2.inOut"
     }, 3.5);
-
-    // 8. At the same time, elegantly fade out everything EXCEPT the main title
-    tl.to([
-        "#gallery-hero-icon", 
-        "#gallery-hero-subtitle", 
-        "#gallery-hero-text"
-    ], {
-        opacity: 0,
-        duration: 1.0,
-        ease: "power2.inOut"
-    }, 3.5);
     
+    if (isLargeScreen) {
+        // Desktop: Fade out subtitle/desc only, keep title visible
+        tl.to([
+            "#gallery-hero-icon", 
+            "#gallery-hero-subtitle", 
+            "#gallery-hero-text"
+        ], {
+            opacity: 0,
+            duration: 1.2,
+            ease: "power2.inOut"
+        }, 3.5);
+    } else {
+        // Mobile/Tablet: Fade out ALL text elements including the title
+        tl.to([
+            "#gallery-hero-icon", 
+            "#gallery-hero-subtitle", 
+            "#gallery-hero-title",
+            "#gallery-hero-text"
+        ], {
+            opacity: 0,
+            duration: 1.2,
+            ease: "power2.inOut"
+        }, 3.5);
+    }
+
     // 9. Enable pointer events on the cards wrapper
     tl.to("#gallery-hero-cards", {
         opacity: 1,
@@ -328,30 +363,115 @@ const initMobileMenu = () => {
 
     if (!btn || !closeBtn || !menu) return;
 
-    const openMenu = () => {
-        menu.classList.remove("opacity-0", "pointer-events-none", "hidden");
-        menu.classList.add("opacity-100", "pointer-events-auto", "flex");
+    // Let GSAP handle the visibility and opacity
+    menu.classList.remove("transition-opacity", "duration-300", "pointer-events-none", "opacity-0");
+    gsap.set(menu, { autoAlpha: 0, display: "none" });
+
+    // Create the smooth animation timeline
+    const tl = gsap.timeline({ paused: true, reversed: true });
+    
+    tl.to(menu, { autoAlpha: 1, display: "flex", duration: 0.4, ease: "power2.inOut" });
+    tl.fromTo(links, 
+        { y: 40, opacity: 0 }, 
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: "power3.out" }, 
+        "-=0.2"
+    );
+
+    const toggleMenu = () => {
+        tl.reversed() ? tl.play() : tl.reverse();
     };
 
-    const closeMenu = () => {
-        menu.classList.add("opacity-0", "pointer-events-none");
-        menu.classList.remove("opacity-100", "pointer-events-auto");
-        // We use a timeout to hide it completely after the opacity transition
-        setTimeout(() => {
-            menu.classList.add("hidden");
-            menu.classList.remove("flex");
-        }, 300);
-    };
-
-    // Ensure it's initially hidden
-    menu.classList.add("hidden");
-
-    btn.addEventListener("click", openMenu);
-    closeBtn.addEventListener("click", closeMenu);
+    btn.addEventListener("click", toggleMenu);
+    closeBtn.addEventListener("click", toggleMenu);
 
     links.forEach(link => {
-        link.addEventListener("click", closeMenu);
+        link.addEventListener("click", () => {
+            tl.reverse();
+        });
     });
+};
+
+const initSectionReveals = () => {
+    // 1. Features Banner
+    const features = document.querySelectorAll(".bg-\\[\\#eee5db\\] .grid > div");
+    if (features.length > 0) {
+        gsap.fromTo(features, 
+            { y: 30, opacity: 0 },
+            { 
+                y: 0, opacity: 1, duration: 0.8, stagger: 0.15, ease: "power3.out",
+                scrollTrigger: { trigger: features[0].parentElement, start: "top 90%" }
+            }
+        );
+    }
+
+    // 2. Section Headers (What We Do, Testimonials, Contact Info, Footer Top)
+    const headers = document.querySelectorAll(
+        "#what-we-do > div:first-child, " +
+        "#testimonials-section > div:first-child, " +
+        "#contact-section .flex-col.justify-center, " +
+        "#footer > div > div:first-child"
+    );
+    gsap.utils.toArray(headers).forEach(header => {
+        gsap.fromTo(header, 
+            { y: 40, opacity: 0 },
+            { 
+                y: 0, opacity: 1, duration: 1, ease: "power3.out",
+                scrollTrigger: { trigger: header, start: "top 85%" }
+            }
+        );
+    });
+
+    // 3. What We Do Timeline Rows
+    const timelineRows = document.querySelectorAll("#what-we-do .max-w-\\[1600px\\] > div");
+    gsap.utils.toArray(timelineRows).forEach((row, index) => {
+        // Alternate sliding direction based on row index
+        const startX = index % 2 === 0 ? -100 : 100;
+        
+        gsap.fromTo(row,
+            { x: startX, opacity: 0 },
+            { 
+                x: 0, opacity: 1, duration: 1.2, ease: "power3.out",
+                scrollTrigger: { trigger: row, start: "top 85%" }
+            }
+        );
+    });
+
+    // 4. Testimonials Cards
+    const testimonials = document.querySelectorAll("#testimonials-section .bg-\\[\\#110a06\\]");
+    gsap.utils.toArray(testimonials).forEach((testi, index) => {
+        const startX = index % 2 === 0 ? -100 : 100;
+        gsap.fromTo(testi,
+            { x: startX, opacity: 0 },
+            { 
+                x: 0, opacity: 1, duration: 1.2, ease: "power3.out",
+                scrollTrigger: { trigger: testi, start: "top 90%" }
+            }
+        );
+    });
+
+    // 5. Contact Form
+    const contactForm = document.querySelector("#contact-section .bg-\\[\\#110a06\\]");
+    if (contactForm) {
+        gsap.fromTo(contactForm,
+            { x: 30, opacity: 0 },
+            { 
+                x: 0, opacity: 1, duration: 1, ease: "power3.out",
+                scrollTrigger: { trigger: contactForm, start: "top 85%" }
+            }
+        );
+    }
+
+    // 6. Footer Bottom
+    const footerBottom = document.querySelector("#footer > div > div:last-child");
+    if (footerBottom) {
+        gsap.fromTo(footerBottom,
+            { opacity: 0 },
+            { 
+                opacity: 1, duration: 1, ease: "power2.inOut",
+                scrollTrigger: { trigger: footerBottom, start: "top 95%" }
+            }
+        );
+    }
 };
 
 window.addEventListener("load", () => {
@@ -365,4 +485,5 @@ window.addEventListener("load", () => {
     initGalleryAnimation();
     initCanvasScroll2();
     initMobileMenu();
+    initSectionReveals();
 });
